@@ -91,6 +91,10 @@
             flex: 1;
         }
 
+        .quantity-input {
+            width: 100px;
+        }
+
         button {
             background-color: var(--primary);
             color: white;
@@ -179,7 +183,18 @@
             font-weight: 600;
         }
 
+        .item-details {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
         .item-price {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .item-quantity {
             color: #6b7280;
             font-size: 0.9rem;
         }
@@ -356,6 +371,7 @@
             width: 100%;
             gap: 0.75rem;
             margin-top: 0.5rem;
+            flex-direction: column;
         }
 
         .edit-form input {
@@ -441,18 +457,19 @@
         <div class="card">
             <form id="grocery-form">
                 <div class="form-group">
-                    <input type="text" id="item-name" placeholder="Enter grocery item" required>
-                    <input type="number" id="item-price" placeholder="Price" step="0.01" min="0" required>
+                    <input type="text" id="item-name" placeholder="Item name" required>
+                    <input type="number" id="item-price" placeholder="Price per item" step="0.01" min="0" required>
+                    <input type="number" id="item-quantity" class="quantity-input" placeholder="Quantity" min="1" value="1" required>
                     <button type="submit" class="btn-add">Add Item</button>
                 </div>
                 <button type="button" id="toggle-bulk-add" class="btn-secondary">Bulk Add Items</button>
                 
                 <div class="bulk-add-container" id="bulk-add-container">
                     <p class="bulk-add-instructions">
-                        Enter multiple items, one per line, in the format: Item Name, Price<br>
-                        Example: Milk, 25.99<br>
-                        Bananas, 12.50<br>
-                        Bread, 18.00
+                        Enter multiple items, one per line, in the format: Item Name, Price, Quantity<br>
+                        Example: Milk, 25.99, 2<br>
+                        Bananas, 12.50, 5<br>
+                        Bread, 18.00 (quantity defaults to 1)
                     </p>
                     <textarea class="bulk-add-textarea" id="bulk-add-textarea" placeholder="Enter multiple items here..."></textarea>
                     <div class="form-actions">
@@ -504,12 +521,20 @@
     </div>
 
     <script>
+        // Initialize with quantity migration
         let groceryItems = JSON.parse(localStorage.getItem('groceryItems')) || [];
-        let currentlyEditingIndex = null;
+        groceryItems = groceryItems.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity || 1,
+            selected: item.selected || false
+        }));
+        localStorage.setItem('groceryItems', JSON.stringify(groceryItems));
         
         const groceryForm = document.getElementById('grocery-form');
         const itemNameInput = document.getElementById('item-name');
         const itemPriceInput = document.getElementById('item-price');
+        const itemQuantityInput = document.getElementById('item-quantity');
         const groceryListEl = document.getElementById('grocery-list');
         const emptyStateEl = document.getElementById('empty-state');
         const totalCountEl = document.getElementById('total-count');
@@ -525,30 +550,27 @@
         const addBulkItemsBtn = document.getElementById('add-bulk-items');
         const cancelBulkAddBtn = document.getElementById('cancel-bulk-add');
 
-        // Toast notifications
         function showToast(message, isWarning = false) {
             toastMessage.textContent = message;
             toast.className = isWarning ? 'toast warning show' : 'toast show';
-            
-            setTimeout(() => {
-                toast.className = 'toast';
-            }, 3000);
+            setTimeout(() => toast.className = 'toast', 3000);
         }
 
-        // Price formatting
         function formatPrice(price) {
             return parseFloat(price).toFixed(2);
         }
 
-        // Update summary statistics
         function updateSummary() {
-            const totalItems = groceryItems.length;
-            const selectedItems = groceryItems.filter(item => item.selected).length;
+            const totalItems = groceryItems.reduce((sum, item) => sum + item.quantity, 0);
+            const selectedItems = groceryItems.filter(item => item.selected)
+                                              .reduce((sum, item) => sum + item.quantity, 0);
             
-            const totalPrice = groceryItems.reduce((sum, item) => sum + parseFloat(item.price), 0);
-            const selectedPrice = groceryItems
-                .filter(item => item.selected)
-                .reduce((sum, item) => sum + parseFloat(item.price), 0);
+            const totalPrice = groceryItems.reduce((sum, item) => 
+                sum + (parseFloat(item.price) * item.quantity), 0);
+            
+            const selectedPrice = groceryItems.filter(item => item.selected)
+                                              .reduce((sum, item) => 
+                                                sum + (parseFloat(item.price) * item.quantity), 0);
             
             totalCountEl.textContent = totalItems;
             selectedCountEl.textContent = selectedItems;
@@ -556,25 +578,16 @@
             selectedPriceEl.textContent = formatPrice(selectedPrice);
         }
 
-        // Save to localStorage
         function saveGroceryItems() {
             localStorage.setItem('groceryItems', JSON.stringify(groceryItems));
         }
 
-        // Toggle empty state
         function toggleEmptyState() {
-            if (groceryItems.length === 0) {
-                emptyStateEl.style.display = 'block';
-            } else {
-                emptyStateEl.style.display = 'none';
-            }
+            emptyStateEl.style.display = groceryItems.length ? 'none' : 'block';
         }
 
-        // Render grocery list
         function renderGroceryList() {
-            const items = groceryListEl.querySelectorAll('.grocery-item');
-            items.forEach(item => item.remove());
-            
+            groceryListEl.querySelectorAll('.grocery-item').forEach(item => item.remove());
             toggleEmptyState();
             
             groceryItems.forEach((item, index) => {
@@ -586,10 +599,14 @@
                     </div>
                     <div class="item-info">
                         <span class="item-name">${item.name}</span>
-                        <span class="item-price">R${formatPrice(item.price)}</span>
+                        <div class="item-details">
+                            <span class="item-price">R${formatPrice(item.price)}</span>
+                            <span class="item-quantity">x${item.quantity}</span>
+                        </div>
                         <div class="edit-form" id="edit-form-${index}">
                             <input type="text" id="edit-name-${index}" value="${item.name}" placeholder="Item name">
-                            <input type="number" id="edit-price-${index}" value="${item.price}" step="0.01" min="0" placeholder="Price">
+                            <input type="number" id="edit-price-${index}" value="${item.price}" step="0.01" min="0" placeholder="Price per item">
+                            <input type="number" id="edit-quantity-${index}" value="${item.quantity}" min="1" placeholder="Quantity">
                             <div class="edit-form-buttons">
                                 <button type="button" class="btn-add save-edit" data-index="${index}">Save</button>
                                 <button type="button" class="btn-secondary cancel-edit" data-index="${index}">Cancel</button>
@@ -601,72 +618,60 @@
                         <button class="btn-delete" data-index="${index}">×</button>
                     </div>
                 `;
-                
                 groceryListEl.insertBefore(groceryItem, emptyStateEl);
             });
-            
             updateSummary();
         }
 
-        // Add single item
-        function addGroceryItem(name, price) {
+        function addGroceryItem(name, price, quantity = 1) {
             groceryItems.push({
                 name: name.trim(),
                 price: parseFloat(price).toFixed(2),
+                quantity: Math.max(parseInt(quantity) || 1, 1),
                 selected: false
             });
-            
             saveGroceryItems();
             renderGroceryList();
             showToast('Item added successfully!');
         }
 
-        // Edit existing item
-        function editGroceryItem(index, newName, newPrice) {
+        function editGroceryItem(index, newName, newPrice, newQuantity) {
             groceryItems[index] = {
                 name: newName.trim(),
                 price: parseFloat(newPrice).toFixed(2),
+                quantity: Math.max(parseInt(newQuantity) || 1, 1),
                 selected: groceryItems[index].selected
             };
-            
             saveGroceryItems();
             renderGroceryList();
             showToast('Item updated successfully!');
         }
 
-        // Toggle edit form visibility
         function toggleEditForm(index, show) {
             const editForm = document.getElementById(`edit-form-${index}`);
-            if (editForm) {
-                editForm.style.display = show ? 'flex' : 'none';
-            }
+            if (editForm) editForm.style.display = show ? 'flex' : 'none';
         }
 
-        // Bulk add items
         function addBulkItems() {
-            const text = bulkAddTextarea.value.trim();
-            if (!text) return;
-
-            const lines = text.split('\n');
+            const lines = bulkAddTextarea.value.trim().split('\n');
             let addedCount = 0;
 
             lines.forEach(line => {
-                const [name, price] = line.split(',').map(item => item.trim());
+                const [name, price, quantity] = line.split(',').map(item => item.trim());
                 if (name && price && !isNaN(price)) {
-                    addGroceryItem(name, price);
+                    addGroceryItem(name, price, quantity);
                     addedCount++;
                 }
             });
 
-            if (addedCount > 0) {
-                showToast(`Added ${addedCount} items successfully!`);
+            if (addedCount) {
+                showToast(`Added ${addedCount} items!`);
                 toggleBulkAdd();
             } else {
-                showToast('No valid items found. Please check your format.', true);
+                showToast('Invalid format!', true);
             }
         }
 
-        // Delete item
         function deleteGroceryItem(index) {
             groceryItems.splice(index, 1);
             saveGroceryItems();
@@ -674,48 +679,38 @@
             showToast('Item removed!');
         }
 
-        // Toggle item selection
         function toggleItemSelection(index) {
             groceryItems[index].selected = !groceryItems[index].selected;
             saveGroceryItems();
             renderGroceryList();
         }
 
-        // Bulk add toggle
         function toggleBulkAdd() {
             const isVisible = bulkAddContainer.style.display === 'block';
             bulkAddContainer.style.display = isVisible ? 'none' : 'block';
             toggleBulkAddBtn.textContent = isVisible ? 'Bulk Add Items' : 'Hide Bulk Add';
-            
-            if (!isVisible) {
-                bulkAddTextarea.focus();
-            } else {
-                bulkAddTextarea.value = '';
-            }
+            if (!isVisible) bulkAddTextarea.focus();
+            else bulkAddTextarea.value = '';
         }
 
-        // Add sample data
         function addSampleData() {
             const sampleItems = [
-                { name: 'Milk', price: 25.99, selected: false },
-                { name: 'Bread', price: 18.49, selected: false },
-                { name: 'Eggs', price: 32.99, selected: false },
-                { name: 'Bananas', price: 12.99, selected: false },
-                { name: 'Chicken Breast', price: 65.99, selected: false }
+                { name: 'Milk', price: 25.99, quantity: 2 },
+                { name: 'Bread', price: 18.49, quantity: 3 },
+                { name: 'Eggs', price: 32.99, quantity: 1 },
+                { name: 'Bananas', price: 12.99, quantity: 5 },
+                { name: 'Chicken Breast', price: 65.99, quantity: 2 }
             ];
-            
             groceryItems = [...groceryItems, ...sampleItems];
             saveGroceryItems();
             renderGroceryList();
             showToast('Sample items added!');
         }
 
-        // Export list
         function exportList() {
             const data = groceryItems.map(item => 
-                `${item.name} - R${item.price}${item.selected ? ' (Selected)' : ''}`
+                `${item.name} - R${item.price} x${item.quantity} = R${(item.price * item.quantity).toFixed(2)}`
             ).join('\n');
-            
             const blob = new Blob([data], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -725,98 +720,75 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('List exported successfully!');
+            showToast('List exported!');
         }
 
-        // Share list
         function generateShareLink() {
-            const data = btoa(JSON.stringify(groceryItems));
-            return `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(data)}`;
+            return `${location.origin}${location.pathname}?data=${btoa(JSON.stringify(groceryItems))}`;
         }
 
         function shareList() {
+            const link = generateShareLink();
             if (navigator.share) {
                 navigator.share({
                     title: 'My Grocery List',
                     text: 'Check out my grocery list!',
-                    url: generateShareLink()
+                    url: link
                 });
             } else {
-                const link = generateShareLink();
                 navigator.clipboard.writeText(link);
                 showToast('Link copied to clipboard!');
             }
         }
 
-        // Import from URL
         function importFromURL() {
-            const urlParams = new URLSearchParams(window.location.search);
+            const urlParams = new URLSearchParams(location.search);
             const data = urlParams.get('data');
-            
             if (data) {
                 try {
-                    const decoded = JSON.parse(atob(data));
-                    if (Array.isArray(decoded)) {
-                        groceryItems = decoded;
-                        saveGroceryItems();
-                        renderGroceryList();
-                        showToast('Imported list successfully!');
-                    }
-                } catch (e) {
-                    showToast('Invalid import data', true);
+                    groceryItems = JSON.parse(atob(data));
+                    saveGroceryItems();
+                    renderGroceryList();
+                    showToast('Imported list!');
+                } catch {
+                    showToast('Invalid import data!', true);
                 }
             }
         }
 
-        // Event listeners
-        groceryForm.addEventListener('submit', function(e) {
+        // Event Listeners
+        groceryForm.addEventListener('submit', e => {
             e.preventDefault();
-            
             const name = itemNameInput.value.trim();
             const price = itemPriceInput.value;
-            
-            if (name && price) {
-                addGroceryItem(name, price);
-                
-                itemNameInput.value = '';
-                itemPriceInput.value = '';
-                itemNameInput.focus();
-            }
+            const quantity = itemQuantityInput.value || 1;
+            if (name && price) addGroceryItem(name, price, quantity);
+            itemNameInput.value = itemPriceInput.value = '';
+            itemQuantityInput.value = 1;
+            itemNameInput.focus();
         });
 
-        groceryListEl.addEventListener('click', function(e) {
+        groceryListEl.addEventListener('click', e => {
             if (e.target.classList.contains('btn-delete')) {
-                const index = parseInt(e.target.dataset.index);
-                deleteGroceryItem(index);
+                deleteGroceryItem(parseInt(e.target.dataset.index));
             }
-            
             if (e.target.classList.contains('btn-edit')) {
                 const index = parseInt(e.target.dataset.index);
                 toggleEditForm(index, true);
-                currentlyEditingIndex = index;
             }
-            
             if (e.target.classList.contains('custom-checkbox')) {
-                const index = parseInt(e.target.dataset.index);
-                toggleItemSelection(index);
+                toggleItemSelection(parseInt(e.target.dataset.index));
             }
-            
             if (e.target.classList.contains('save-edit')) {
                 const index = parseInt(e.target.dataset.index);
-                const editName = document.getElementById(`edit-name-${index}`).value;
-                const editPrice = document.getElementById(`edit-price-${index}`).value;
-                
-                if (editName && editPrice) {
-                    editGroceryItem(index, editName, editPrice);
-                } else {
-                    showToast('Please enter both name and price', true);
-                }
+                const name = document.getElementById(`edit-name-${index}`).value;
+                const price = document.getElementById(`edit-price-${index}`).value;
+                const quantity = document.getElementById(`edit-quantity-${index}`).value;
+                if (name && price && quantity) editGroceryItem(index, name, price, quantity);
+                else showToast('Please fill all fields', true);
             }
-            
             if (e.target.classList.contains('cancel-edit')) {
-                const index = parseInt(e.target.dataset.index);
-                toggleEditForm(index, false);
-                currentlyEditingIndex = null;
+                toggleEditForm(parseInt(e.target.dataset.index), false);
             }
         });
 
@@ -827,7 +799,6 @@
         document.getElementById('export-list').addEventListener('click', exportList);
         document.getElementById('share-list').addEventListener('click', shareList);
 
-        // Initial setup
         renderGroceryList();
         importFromURL();
     </script>
