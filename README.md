@@ -30,11 +30,7 @@
         <li>Vanilla JavaScript</li>
         <li>Local Storage API</li>
     </ul>
-    <h2>📄 License</h2>
-    <p>MIT License - See <a href="LICENSE">LICENSE</a> file</p>
-    <div class="note">
-        <h3>📝 Note</h3>
-        <p>Replace <code>SCREENSHOT-PLACEHOLDER.jpg</code> with your actual screenshot file</p>
-    </div>
+    <h2>Managed by <a href="https://kaytechcodecatalyst.co.za/">KayTech CodeCatalyst</a> </h2>
+    
 </body>
 </html>
