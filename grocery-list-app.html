@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Grocery Budget Tracker</title>
+    <title>Grocery Budget Tracker</title>
     <style>
         :root {
             --primary: #6366f1;
@@ -130,6 +130,14 @@
 
         .btn-warning:hover {
             background-color: #d97706;
+        }
+
+        .btn-export {
+            background-color: #10b981;
+        }
+
+        .btn-share {
+            background-color: #3b82f6;
         }
 
         .grocery-list {
@@ -359,6 +367,13 @@
             gap: 0.75rem;
         }
 
+        .export-actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 768px) {
             .form-group {
                 flex-direction: column;
@@ -469,6 +484,11 @@
                     <div>Selected: R<span id="selected-price" class="selected-price">0.00</span></div>
                 </div>
             </div>
+
+            <div class="export-actions">
+                <button class="btn-add btn-export" id="export-list">Export List</button>
+                <button class="btn-add btn-share" id="share-list">Share List</button>
+            </div>
         </div>
     </div>
 
@@ -505,6 +525,7 @@
         const addBulkItemsBtn = document.getElementById('add-bulk-items');
         const cancelBulkAddBtn = document.getElementById('cancel-bulk-add');
 
+        // Toast notifications
         function showToast(message, isWarning = false) {
             toastMessage.textContent = message;
             toast.className = isWarning ? 'toast warning show' : 'toast show';
@@ -514,10 +535,12 @@
             }, 3000);
         }
 
+        // Price formatting
         function formatPrice(price) {
             return parseFloat(price).toFixed(2);
         }
 
+        // Update summary statistics
         function updateSummary() {
             const totalItems = groceryItems.length;
             const selectedItems = groceryItems.filter(item => item.selected).length;
@@ -533,10 +556,12 @@
             selectedPriceEl.textContent = formatPrice(selectedPrice);
         }
 
+        // Save to localStorage
         function saveGroceryItems() {
             localStorage.setItem('groceryItems', JSON.stringify(groceryItems));
         }
 
+        // Toggle empty state
         function toggleEmptyState() {
             if (groceryItems.length === 0) {
                 emptyStateEl.style.display = 'block';
@@ -545,6 +570,7 @@
             }
         }
 
+        // Render grocery list
         function renderGroceryList() {
             const items = groceryListEl.querySelectorAll('.grocery-item');
             items.forEach(item => item.remove());
@@ -582,6 +608,7 @@
             updateSummary();
         }
 
+        // Add single item
         function addGroceryItem(name, price) {
             groceryItems.push({
                 name: name.trim(),
@@ -594,6 +621,7 @@
             showToast('Item added successfully!');
         }
 
+        // Edit existing item
         function editGroceryItem(index, newName, newPrice) {
             groceryItems[index] = {
                 name: newName.trim(),
@@ -606,6 +634,7 @@
             showToast('Item updated successfully!');
         }
 
+        // Toggle edit form visibility
         function toggleEditForm(index, show) {
             const editForm = document.getElementById(`edit-form-${index}`);
             if (editForm) {
@@ -613,6 +642,7 @@
             }
         }
 
+        // Bulk add items
         function addBulkItems() {
             const text = bulkAddTextarea.value.trim();
             if (!text) return;
@@ -636,6 +666,7 @@
             }
         }
 
+        // Delete item
         function deleteGroceryItem(index) {
             groceryItems.splice(index, 1);
             saveGroceryItems();
@@ -643,12 +674,14 @@
             showToast('Item removed!');
         }
 
+        // Toggle item selection
         function toggleItemSelection(index) {
             groceryItems[index].selected = !groceryItems[index].selected;
             saveGroceryItems();
             renderGroceryList();
         }
 
+        // Bulk add toggle
         function toggleBulkAdd() {
             const isVisible = bulkAddContainer.style.display === 'block';
             bulkAddContainer.style.display = isVisible ? 'none' : 'block';
@@ -661,6 +694,7 @@
             }
         }
 
+        // Add sample data
         function addSampleData() {
             const sampleItems = [
                 { name: 'Milk', price: 25.99, selected: false },
@@ -676,6 +710,65 @@
             showToast('Sample items added!');
         }
 
+        // Export list
+        function exportList() {
+            const data = groceryItems.map(item => 
+                `${item.name} - R${item.price}${item.selected ? ' (Selected)' : ''}`
+            ).join('\n');
+            
+            const blob = new Blob([data], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'grocery-list.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('List exported successfully!');
+        }
+
+        // Share list
+        function generateShareLink() {
+            const data = btoa(JSON.stringify(groceryItems));
+            return `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(data)}`;
+        }
+
+        function shareList() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'My Grocery List',
+                    text: 'Check out my grocery list!',
+                    url: generateShareLink()
+                });
+            } else {
+                const link = generateShareLink();
+                navigator.clipboard.writeText(link);
+                showToast('Link copied to clipboard!');
+            }
+        }
+
+        // Import from URL
+        function importFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const data = urlParams.get('data');
+            
+            if (data) {
+                try {
+                    const decoded = JSON.parse(atob(data));
+                    if (Array.isArray(decoded)) {
+                        groceryItems = decoded;
+                        saveGroceryItems();
+                        renderGroceryList();
+                        showToast('Imported list successfully!');
+                    }
+                } catch (e) {
+                    showToast('Invalid import data', true);
+                }
+            }
+        }
+
+        // Event listeners
         groceryForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -731,8 +824,12 @@
         addBulkItemsBtn.addEventListener('click', addBulkItems);
         cancelBulkAddBtn.addEventListener('click', toggleBulkAdd);
         addSampleDataBtn.addEventListener('click', addSampleData);
+        document.getElementById('export-list').addEventListener('click', exportList);
+        document.getElementById('share-list').addEventListener('click', shareList);
 
+        // Initial setup
         renderGroceryList();
+        importFromURL();
     </script>
 </body>
 </html>
