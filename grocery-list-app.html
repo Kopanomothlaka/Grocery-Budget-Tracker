@@ -14,6 +14,7 @@
             --light-gray: #e5e7eb;
             --success: #10b981;
             --danger: #ef4444;
+            --warning: #f59e0b;
         }
 
         * {
@@ -72,7 +73,7 @@
             margin-bottom: 1rem;
         }
 
-        input, button {
+        input, button, textarea {
             padding: 0.75rem 1rem;
             border-radius: 8px;
             border: 1px solid var(--light-gray);
@@ -81,7 +82,7 @@
             transition: all 0.2s ease;
         }
 
-        input:focus {
+        input:focus, textarea:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
         }
@@ -112,6 +113,23 @@
 
         .btn-add {
             min-width: 100px;
+        }
+
+        .btn-secondary {
+            background-color: var(--light-gray);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+        }
+
+        .btn-warning:hover {
+            background-color: #d97706;
         }
 
         .grocery-list {
@@ -216,6 +234,25 @@
             background-color: #dc2626;
         }
 
+        .btn-edit {
+            background-color: var(--warning);
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            transition: all 0.2s ease;
+        }
+
+        .btn-edit:hover {
+            background-color: #d97706;
+        }
+
         .checked {
             opacity: 0.6;
             text-decoration: line-through;
@@ -279,6 +316,49 @@
             transform: translateY(0);
         }
 
+        .toast.warning {
+            background-color: var(--warning);
+        }
+
+        .bulk-add-container {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .bulk-add-textarea {
+            width: 100%;
+            min-height: 100px;
+            margin-bottom: 0.75rem;
+            resize: vertical;
+        }
+
+        .bulk-add-instructions {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 0.75rem;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .edit-form {
+            display: none;
+            width: 100%;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .edit-form input {
+            flex: 1;
+        }
+
+        .edit-form-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+
         @media (max-width: 768px) {
             .form-group {
                 flex-direction: column;
@@ -302,6 +382,18 @@
             .summary-section {
                 flex-direction: column;
                 gap: 1rem;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .edit-form {
+                flex-direction: column;
+            }
+
+            .edit-form-buttons {
+                width: 100%;
             }
         }
 
@@ -338,6 +430,21 @@
                     <input type="number" id="item-price" placeholder="Price" step="0.01" min="0" required>
                     <button type="submit" class="btn-add">Add Item</button>
                 </div>
+                <button type="button" id="toggle-bulk-add" class="btn-secondary">Bulk Add Items</button>
+                
+                <div class="bulk-add-container" id="bulk-add-container">
+                    <p class="bulk-add-instructions">
+                        Enter multiple items, one per line, in the format: Item Name, Price<br>
+                        Example: Milk, 25.99<br>
+                        Bananas, 12.50<br>
+                        Bread, 18.00
+                    </p>
+                    <textarea class="bulk-add-textarea" id="bulk-add-textarea" placeholder="Enter multiple items here..."></textarea>
+                    <div class="form-actions">
+                        <button type="button" id="add-bulk-items" class="btn-add">Add All Items</button>
+                        <button type="button" id="cancel-bulk-add" class="btn-secondary">Cancel</button>
+                    </div>
+                </div>
             </form>
         </div>
 
@@ -348,6 +455,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                     <p>Your grocery list is empty</p>
+                    <button id="add-sample-data" class="btn-add">Add Sample Items</button>
                 </div>
             </div>
 
@@ -359,7 +467,6 @@
                 <div>
                     <div class="total-price">Total: R<span id="total-price">0.00</span></div>
                     <div>Selected: R<span id="selected-price" class="selected-price">0.00</span></div>
-                    
                 </div>
             </div>
         </div>
@@ -378,6 +485,7 @@
 
     <script>
         let groceryItems = JSON.parse(localStorage.getItem('groceryItems')) || [];
+        let currentlyEditingIndex = null;
         
         const groceryForm = document.getElementById('grocery-form');
         const itemNameInput = document.getElementById('item-name');
@@ -391,13 +499,18 @@
         const addSampleDataBtn = document.getElementById('add-sample-data');
         const toast = document.getElementById('toast');
         const toastMessage = document.getElementById('toast-message');
+        const toggleBulkAddBtn = document.getElementById('toggle-bulk-add');
+        const bulkAddContainer = document.getElementById('bulk-add-container');
+        const bulkAddTextarea = document.getElementById('bulk-add-textarea');
+        const addBulkItemsBtn = document.getElementById('add-bulk-items');
+        const cancelBulkAddBtn = document.getElementById('cancel-bulk-add');
 
-        function showToast(message) {
+        function showToast(message, isWarning = false) {
             toastMessage.textContent = message;
-            toast.classList.add('show');
+            toast.className = isWarning ? 'toast warning show' : 'toast show';
             
             setTimeout(() => {
-                toast.classList.remove('show');
+                toast.className = 'toast';
             }, 3000);
         }
 
@@ -448,8 +561,17 @@
                     <div class="item-info">
                         <span class="item-name">${item.name}</span>
                         <span class="item-price">R${formatPrice(item.price)}</span>
+                        <div class="edit-form" id="edit-form-${index}">
+                            <input type="text" id="edit-name-${index}" value="${item.name}" placeholder="Item name">
+                            <input type="number" id="edit-price-${index}" value="${item.price}" step="0.01" min="0" placeholder="Price">
+                            <div class="edit-form-buttons">
+                                <button type="button" class="btn-add save-edit" data-index="${index}">Save</button>
+                                <button type="button" class="btn-secondary cancel-edit" data-index="${index}">Cancel</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="item-controls">
+                        <button class="btn-edit" data-index="${index}">✏️</button>
                         <button class="btn-delete" data-index="${index}">×</button>
                     </div>
                 `;
@@ -462,14 +584,56 @@
 
         function addGroceryItem(name, price) {
             groceryItems.push({
-                name,
-                price,
+                name: name.trim(),
+                price: parseFloat(price).toFixed(2),
                 selected: false
             });
             
             saveGroceryItems();
             renderGroceryList();
             showToast('Item added successfully!');
+        }
+
+        function editGroceryItem(index, newName, newPrice) {
+            groceryItems[index] = {
+                name: newName.trim(),
+                price: parseFloat(newPrice).toFixed(2),
+                selected: groceryItems[index].selected
+            };
+            
+            saveGroceryItems();
+            renderGroceryList();
+            showToast('Item updated successfully!');
+        }
+
+        function toggleEditForm(index, show) {
+            const editForm = document.getElementById(`edit-form-${index}`);
+            if (editForm) {
+                editForm.style.display = show ? 'flex' : 'none';
+            }
+        }
+
+        function addBulkItems() {
+            const text = bulkAddTextarea.value.trim();
+            if (!text) return;
+
+            const lines = text.split('\n');
+            let addedCount = 0;
+
+            lines.forEach(line => {
+                const [name, price] = line.split(',').map(item => item.trim());
+                if (name && price && !isNaN(price)) {
+                    addGroceryItem(name, price);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                showToast(`Added ${addedCount} items successfully!`);
+                toggleBulkAdd();
+            } else {
+                showToast('No valid items found. Please check your format.', true);
+            }
         }
 
         function deleteGroceryItem(index) {
@@ -483,6 +647,18 @@
             groceryItems[index].selected = !groceryItems[index].selected;
             saveGroceryItems();
             renderGroceryList();
+        }
+
+        function toggleBulkAdd() {
+            const isVisible = bulkAddContainer.style.display === 'block';
+            bulkAddContainer.style.display = isVisible ? 'none' : 'block';
+            toggleBulkAddBtn.textContent = isVisible ? 'Bulk Add Items' : 'Hide Bulk Add';
+            
+            if (!isVisible) {
+                bulkAddTextarea.focus();
+            } else {
+                bulkAddTextarea.value = '';
+            }
         }
 
         function addSampleData() {
@@ -521,12 +697,39 @@
                 deleteGroceryItem(index);
             }
             
+            if (e.target.classList.contains('btn-edit')) {
+                const index = parseInt(e.target.dataset.index);
+                toggleEditForm(index, true);
+                currentlyEditingIndex = index;
+            }
+            
             if (e.target.classList.contains('custom-checkbox')) {
                 const index = parseInt(e.target.dataset.index);
                 toggleItemSelection(index);
             }
+            
+            if (e.target.classList.contains('save-edit')) {
+                const index = parseInt(e.target.dataset.index);
+                const editName = document.getElementById(`edit-name-${index}`).value;
+                const editPrice = document.getElementById(`edit-price-${index}`).value;
+                
+                if (editName && editPrice) {
+                    editGroceryItem(index, editName, editPrice);
+                } else {
+                    showToast('Please enter both name and price', true);
+                }
+            }
+            
+            if (e.target.classList.contains('cancel-edit')) {
+                const index = parseInt(e.target.dataset.index);
+                toggleEditForm(index, false);
+                currentlyEditingIndex = null;
+            }
         });
 
+        toggleBulkAddBtn.addEventListener('click', toggleBulkAdd);
+        addBulkItemsBtn.addEventListener('click', addBulkItems);
+        cancelBulkAddBtn.addEventListener('click', toggleBulkAdd);
         addSampleDataBtn.addEventListener('click', addSampleData);
 
         renderGroceryList();
