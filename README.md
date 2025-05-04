@@ -2,21 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Grocery Budget Tracker</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1 { color: #2c3e50; }
-        .badge { display: inline-block; padding: 5px 10px; background: #00c853; color: white; border-radius: 5px; text-decoration: none; }
-        img { max-width: 100%; border: 1px solid #ddd; border-radius: 5px; margin: 20px 0; }
-        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
-    </style>
+    
 </head>
 <body>
     <h1>🛒 Grocery Budget Tracker 💰</h1>    
     <a href="https://grocerybudgettracker.netlify.app/" class="badge">Live Demo</a>
     <h2>📸 Screenshot</h2>
-    <img src="SCREENSHOT-PLACEHOLDER.jpg" alt="Grocery Budget Tracker Interface">
-    <p><em>Replace with actual screenshot</em></p>
+     <img src="https://github.com/user-attachments/assets/595d5da1-ceb4-4f90-83b2-7d6a3448a7ed" 
+       alt="App Interface" 
+       width="600" 
+       height="337"
+       style="border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1)">
     <h2>🌟 Features</h2>
     <ul>
         <li>Add items with quantity tracking</li>
