@@ -8,7 +8,7 @@
     <h1>🛒 Grocery Budget Tracker 💰</h1>    
     <a href="https://grocerybudgettracker.netlify.app/" class="badge">Live Demo</a>
     <h2>📸 Screenshot</h2>
-     <img src="https://github.com/user-attachments/assets/595d5da1-ceb4-4f90-83b2-7d6a3448a7ed" 
+     <img src="https://github.com/user-attachments/assets/5c05761d-7419-434f-90bd-4a113ccb28e6" 
        alt="App Interface" 
         style="border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1)">
     <h2>🌟 Features</h2>
